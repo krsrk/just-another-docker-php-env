@@ -1,0 +1,55 @@
+version: '3.7'
+services:
+  db:
+    image: 'library/mysql:${MYSQL_VERSION}'
+    container_name: appdev_db_srv
+    restart: unless-stopped
+    #command:
+    #  - --disable-partition-engine-check
+    ports:
+      - '${DB_FORWARD_PORT}:3306'
+    environment:
+      MYSQL_ROOT_HOST: "%"
+      MYSQL_DATABASE: '${DB_DATABASE}'
+      MYSQL_ROOT_PASSWORD: '${DB_ROOT_PASS}'
+      MYSQL_PASSWORD: '${DB_PASS}'
+      MYSQL_USER: '${DB_USER}'
+      SERVICE_TAGS: 'dev'
+      SERVICE_NAME: 'mysql'
+    volumes:
+      - './volumes/mysql/bin:/var/lib/mysql'
+      - ./volumes/mysql:/docker-entrypoint-initdb.d
+    networks:
+      - appdev_network
+
+  app:
+    build:
+      args:
+        user: '${APP_USER}'
+        uid: '${APP_UID}'
+        runtime_version: ${RUNTIME_VERSION}
+      context: .
+      dockerfile: Dockerfile
+    image: appdev-${RUNTIME_VERSION}
+    container_name: appdev_app
+    restart: unless-stopped
+    volumes:
+      - './src/${APP_DIR}:/var/www/app'
+    networks:
+      - appdev_network
+
+  nginx:
+    image: nginx:alpine
+    container_name: appdev_web_srv
+    restart: unless-stopped
+    ports:
+      - '${APP_FORWARD_PORT}:80'
+    volumes:
+      - './src/${APP_DIR}:/var/www/app'
+      - ./config/nginx:/etc/nginx/conf.d/
+    networks:
+      - appdev_network
+
+networks:
+  appdev_network:
+    driver: bridge
